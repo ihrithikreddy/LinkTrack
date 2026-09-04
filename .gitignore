@@ -1,0 +1,36 @@
+# Maven & Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+.mvn/
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment variables & Secrets
+.env
+.env.*
+!.env.example
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Test outputs
+coverage/
+.nyc_output/
