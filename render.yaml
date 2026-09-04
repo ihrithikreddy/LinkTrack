@@ -1,0 +1,99 @@
+# render.yaml — Render Blueprint for LinkTrack
+# One-click deployment of the entire stack:
+#   PostgreSQL + Redis + Spring Boot Backend + React Frontend
+#
+# Usage:
+#   1. Push this repo to GitHub (public or private)
+#   2. Go to https://dashboard.render.com/blueprints
+#   3. Click "New Blueprint Instance" → connect your GitHub repo
+#   4. Render will auto-detect this file and deploy everything
+#
+# Docs: https://render.com/docs/blueprint-spec
+
+databases:
+  - name: linktrack-db
+    databaseName: linktrack
+    user: linktrack_user
+    plan: free
+    region: oregon
+
+services:
+  # ──────────────────────────────────────────────────────
+  # 1. Redis Cache (internal — not publicly exposed)
+  # ──────────────────────────────────────────────────────
+  - type: redis
+    name: linktrack-redis
+    plan: free
+    region: oregon
+    ipAllowList: []   # private: only accessible from Render internal network
+
+  # ──────────────────────────────────────────────────────
+  # 2. Backend — Spring Boot (Docker)
+  # URL will be: https://linktrack-backend.onrender.com
+  # ──────────────────────────────────────────────────────
+  - type: web
+    name: linktrack-backend
+    region: oregon
+    plan: free
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8080
+      # PostgreSQL — Render injects the JDBC connection string automatically
+      - key: DB_URL
+        fromDatabase:
+          name: linktrack-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: linktrack-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: linktrack-db
+          property: password
+      # Redis — Render injects host/port from the Redis service above
+      - key: REDIS_HOST
+        fromService:
+          name: linktrack-redis
+          type: redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          name: linktrack-redis
+          type: redis
+          property: port
+      - key: REDIS_ENABLED
+        value: "true"
+      # Security — Render generates a random 64-char secret automatically
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "86400000"
+      # These two URLs MUST be updated after first deploy if service names differ
+      # Render service URLs follow the pattern: https://<service-name>.onrender.com
+      - key: BASE_URL
+        value: https://linktrack-backend.onrender.com
+      - key: FRONTEND_URL
+        value: https://linktrack-frontend.onrender.com
+
+  # ──────────────────────────────────────────────────────
+  # 3. Frontend — React + Nginx (Docker)
+  # URL will be: https://linktrack-frontend.onrender.com
+  # ──────────────────────────────────────────────────────
+  - type: web
+    name: linktrack-frontend
+    region: oregon
+    plan: free
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      - key: VITE_API_URL
+        value: https://linktrack-backend.onrender.com
+    dockerBuildArgs:
+      - name: VITE_API_URL
+        value: https://linktrack-backend.onrender.com
